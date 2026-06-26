@@ -35,11 +35,17 @@
     </div>
   </div>
 
-  <script>
-    // 繪圖核心函式
+<script>
+    // 1. 初始化資料庫
+    const LessonDatabase = {
+      "1": ["灣", "甜", "糖", "童", "寒", "椰", "隊", "蕉", "街", "島", "唾", "沫", "忠", "衛"],
+      "2": ["區", "恐", "陀", "螺", "聚", "架", "速", "彷", "彿", "汽", "泉", "抹", "訝", "牙", "齒"]
+    };
+
+    // 2. 繪圖核心函式
     function drawStrokes(pathList) {
         const svg = document.getElementById('stroke-svg');
-        svg.innerHTML = ''; // 清空畫布
+        svg.innerHTML = ''; 
         pathList.forEach(d => {
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
             path.setAttribute("d", d);
@@ -51,57 +57,46 @@
             svg.appendChild(path);
         });
     }
-// 這是我們剛剛討論的「直接繪製」邏輯
-async function loadMoeStrokeAnimation(char) {
-    const svg = document.getElementById('stroke-svg');
-    // 這裡是你真正的「數據源」所在
-    // 建議你先建立一個 strokeData.json 放在你的 GitHub 倉庫裡
-    const response = await fetch('strokeData.json'); 
-    const data = await response.json();
-    
-    // 清空舊筆劃
-    svg.innerHTML = ''; 
-    
-    // 繪製新筆劃
-    if (data[char]) {
-        data[char].forEach(pathData => {
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", pathData);
-            path.setAttribute("fill", "none");
-            path.setAttribute("stroke", "#16a085");
-            path.setAttribute("stroke-width", "50");
-            svg.appendChild(path);
-        });
-    }
-}
-    // 載入筆順資料 (模擬讀取你的 strokeData.json)
-    async function loadStrokeData(char) {
-        document.getElementById('timer-status').textContent = "正在讀取標準筆順...";
+
+    // 3. 讀取數據繪圖 (現在不需要 iframe 了)
+    async function loadMoeStrokeAnimation(char) {
+        const status = document.getElementById('timer-status');
+        status.textContent = "正在讀取標準筆順...";
         
         try {
-            // 這裡請確保你有上傳 strokeData.json 到相同資料夾
-            const response = await fetch('strokeData.json');
+            const response = await fetch('strokeData.json'); 
             const data = await response.json();
             
             if (data[char]) {
                 drawStrokes(data[char]);
-                document.getElementById('timer-status').textContent = `已顯示「${char}」字標準筆順`;
+                status.textContent = `已顯示「${char}」字標準筆順`;
             } else {
-                document.getElementById('timer-status').textContent = "該字筆順資料庫建置中...";
+                status.textContent = "該字筆順資料庫暫無資料";
             }
         } catch (e) {
-            console.error(e);
-            document.getElementById('timer-status').textContent = "請確保 strokeData.json 檔案已上傳";
+            status.textContent = "請確保 strokeData.json 已上傳";
         }
     }
 
-    // 初始化
-    document.getElementById('char-grid').onclick = (e) => {
-        if (e.target.tagName === 'BUTTON') loadStrokeData(e.target.textContent);
+    // 4. 渲染按鈕
+    function renderCharGrid() {
+      const grid = document.getElementById('char-grid');
+      grid.innerHTML = '';
+      const list = LessonDatabase["1"]; 
+      list.forEach((char) => {
+        const btn = document.createElement('button');
+        btn.textContent = char;
+        btn.className = "bg-white border-2 border-slate-200 p-3 rounded-xl font-bold text-2xl hover:border-teal-500 hover:text-teal-600 transition-all";
+        btn.onclick = () => loadMoeStrokeAnimation(char);
+        grid.appendChild(btn);
+      });
+    }
+
+    // 初始化執行
+    window.onload = () => {
+        renderCharGrid();
+        loadMoeStrokeAnimation('蕉'); // 預設載入
     };
-    
-    // 預設載入
-    loadStrokeData('蕉');
-  </script>
+</script>
 </body>
 </html>
