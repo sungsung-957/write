@@ -51,7 +51,29 @@
             svg.appendChild(path);
         });
     }
-
+// 這是我們剛剛討論的「直接繪製」邏輯
+async function loadMoeStrokeAnimation(char) {
+    const svg = document.getElementById('stroke-svg');
+    // 這裡是你真正的「數據源」所在
+    // 建議你先建立一個 strokeData.json 放在你的 GitHub 倉庫裡
+    const response = await fetch('strokeData.json'); 
+    const data = await response.json();
+    
+    // 清空舊筆劃
+    svg.innerHTML = ''; 
+    
+    // 繪製新筆劃
+    if (data[char]) {
+        data[char].forEach(pathData => {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", pathData);
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "#16a085");
+            path.setAttribute("stroke-width", "50");
+            svg.appendChild(path);
+        });
+    }
+}
     // 載入筆順資料 (模擬讀取你的 strokeData.json)
     async function loadStrokeData(char) {
         document.getElementById('timer-status').textContent = "正在讀取標準筆順...";
