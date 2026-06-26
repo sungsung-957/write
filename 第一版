@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>國小生字筆順教學網</title>
+  <!-- Tailwind CSS for sleek modern UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for cute icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: #f8fafc;
+    }
+
+    /* 自訂滾動條 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+
+    /* 教育部 Iframe 容器樣式 */
+    .iframe-container {
+      border: 6px solid #16a085;
+      border-radius: 24px;
+      background-color: #ffffff;
+      box-shadow: 0 12px 30px rgba(22, 160, 133, 0.12);
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    /* 播放器濾鏡配色組合 */
+    .theme-ink { filter: grayscale(1) contrast(1.2) brightness(1.05); }
+    .theme-mint { filter: hue-rotate(160deg) saturate(0.75) brightness(1.03); }
+    .theme-warm { filter: hue-rotate(35deg) saturate(0.8) brightness(1.03); }
+    .theme-original { filter: none; }
+
+    /* 完成打勾彈出動畫 */
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .badge-bounce {
+      animation: bounceIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-3 md:p-6 select-none">
+
+  <!-- 主操作容器 (自適應寬度，最大限制在 6xl 適合 iPad 橫向解析度) -->
+  <div class="w-full max-w-6xl bg-white rounded-3xl shadow-xl p-4 md:p-6 border border-slate-100 flex flex-col md:flex-row gap-6">
+    
+    <!-- ==================== 左側：控制、課次與選字區 ==================== -->
+    <div class="w-full md:w-5/12 flex flex-col gap-4 order-2 md:order-1 justify-between">
+      
+      <!-- 選單與生字面板 -->
+      <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-3 shadow-sm flex-1">
+        
+        <!-- 課次選擇與清除進度 -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="relative flex-1">
+            <select id="lesson-select" class="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-bold text-slate-800 focus:outline-none focus:border-teal-400 appearance-none cursor-pointer">
+              <option value="1">第一課 (灣、寒、島...)</option>
+              <option value="2">第二課 (區、架、泉...)</option>
+              <option value="3">第三課 (柳、耘、鏡...)</option>
+              <option value="4">第四課 (研、制、兄...)</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-600">
+              <i class="fa-solid fa-chevron-down"></i>
+            </div>
+          </div>
+          
+          <button id="btn-reset" class="px-3 py-3.5 text-xs font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-xl transition-all flex items-center gap-1 shrink-0" title="清除所有生字打勾紀錄">
+            <i class="fa-solid fa-trash-can"></i>
+            <span>清除進度</span>
+          </button>
+        </div>
+
+        <div class="text-slate-700 font-bold text-sm tracking-wider flex items-center gap-1 mt-1">
+          <i class="fa-solid fa-book-open text-teal-600"></i> 本課生字（點選開始筆順練習）：
+        </div>
+
+        <!-- 生字九宮格按鈕區 -->
+        <div id="char-grid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 gap-2.5 max-h-56 md:max-h-[300px] overflow-y-auto pr-1">
+          <!-- 系統動態生成 -->
+        </div>
+      </div>
+
+      <!-- 下方操作面板 (聽音與標記狀態) -->
+      <div class="flex flex-col gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+        <div id="guide-prompt" class="text-slate-800 font-bold text-sm flex items-center gap-1.5 px-1">
+          <i class="fa-solid fa-circle-info text-teal-500"></i>
+          <span id="guide-text" class="truncate">準備載入官方標準生字動畫！</span>
+        </div>
+
+        <!-- 功能按鈕 (大尺寸，防 iPad 誤觸) -->
+        <div class="grid grid-cols-2 gap-3">
+          <button id="audio-pronounce" class="bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-sm py-3.5 px-4 rounded-xl transition-all border border-teal-100 flex items-center justify-center gap-2 shadow-sm" title="聽發音">
+            <i class="fa-solid fa-volume-high text-base"></i>
+            <span>聽讀音</span>
+          </button>
+
+          <button id="btn-mark-learned" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2" title="手動標記狀態">
+            <i id="mark-btn-icon" class="fa-regular fa-square-check text-base"></i>
+            <span id="mark-btn-text">我寫好了！</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== 右側：播放器與載入進度區 ==================== -->
+    <div class="w-full md:w-7/12 flex flex-col gap-3 order-1 md:order-2 justify-between">
+      
+      <!-- 播放器外觀配色切換器 -->
+      <div class="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 px-1 text-xs font-bold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+        <span class="flex items-center gap-1 shrink-0"><i class="fa-solid fa-palette text-teal-600"></i> 播放器外觀配色：</span>
+        <div class="flex flex-wrap gap-1">
+          <button onclick="setPlayerTheme('ink')" id="theme-btn-ink" class="px-2.5 py-1 rounded-full border transition-all">水墨白</button>
+          <button onclick="setPlayerTheme('mint')" id="theme-btn-mint" class="px-2.5 py-1 rounded-full border transition-all">薄荷綠</button>
+          <button onclick="setPlayerTheme('warm')" id="theme-btn-warm" class="px-2.5 py-1 rounded-full border transition-all">暖陽黃</button>
+          <button onclick="setPlayerTheme('original')" id="theme-btn-original" class="px-2.5 py-1 rounded-full border transition-all">原廠粉</button>
+        </div>
+      </div>
+
+      <!-- Iframe 播放器容器 (高度自適應) -->
+      <div id="moe-panel" class="w-full flex justify-center">
+        <div class="iframe-container h-[320px] sm:h-[400px] md:h-[460px]">
+          <iframe id="moe-iframe" src="" class="w-full h-full theme-ink" frameborder="0" allow="fullscreen"></iframe>
+        </div>
+      </div>
+
+      <!-- 練習時間進度條 -->
+      <div id="progress-container" class="w-full px-1 py-1 transition-all duration-300">
+        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200 shadow-inner">
+          <div id="progress-bar" class="bg-emerald-500 h-full w-0 transition-all duration-100 ease-linear"></div>
+        </div>
+        <div class="flex justify-between items-center text-xs text-slate-500 mt-2 font-bold px-1">
+          <span id="timer-status" class="flex items-center gap-1.5"><i class="fa-solid fa-spinner animate-spin text-teal-500"></i> 正在連線教育部官方標準播放器...</span>
+          <span id="timer-countdown" class="bg-slate-100 px-2.5 py-0.5 rounded-md text-slate-600">-- 秒</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 頁腳 -->
+  <footer class="text-center text-xs text-slate-400 mt-6 flex flex-col gap-1">
+    <div>國小生字互動教學網 &copy; 2026</div>
+    <div class="text-[10px]">100% 採用中華民國教育部常用國字標準字體筆順與原廠楷書字形</div>
+  </footer>
+
+  <!-- JS 控制器 -->
+  <script>
+    // 音效合成器
+    const SoundEffects = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+      playCelebrate() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const playTone = (freq, start, duration) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.12, start);
+          gain.gain.exponentialRampToValueAtTime(0.01, start + duration - 0.02);
+          osc.start(start);
+          osc.stop(start + duration);
+        };
+        playTone(523.25, now, 0.1);       // C5
+        playTone(659.25, now + 0.08, 0.1); // E5
+        playTone(783.99, now + 0.16, 0.25); // G5
+      }
+    };
+
+    // 漢林教科書生字庫
+    const LessonDatabase = {
+      "1": ["灣", "甜", "糖", "童", "寒", "椰", "隊", "蕉", "街", "島", "唾", "沫", "忠", "衛"],
+      "2": ["區", "恐", "陀", "螺", "聚", "架", "速", "彷", "彿", "汽", "泉", "抹", "訝", "牙", "齒"],
+      "3": ["柳", "丁", "粉", "網", "錄", "耘", "蔬", "鼓", "腮", "烤", "鏡", "軌", "樓", "與", "耕"],
+      "4": ["研", "靈", "升", "紀", "碑", "制", "命", "義", "標", "良", "兄", "翔", "鷹", "論", "控"]
+    };
+
+    // 筆劃數據（計算手寫練習倒數計時用）
+    const StrokeCountMap = {
+      "灣": 25, "甜": 11, "糖": 16, "童": 12, "寒": 12, "椰": 13, "隊": 11, "蕉": 15, "街": 12, "島": 10, "唾": 11, "沫": 8, "忠": 8, "衛": 15,
+      "區": 11, "恐": 10, "陀": 8, "螺": 17, "聚": 14, "架": 9, "速": 10, "彷": 7, "彿": 8, "汽": 7, "泉": 9, "抹": 8, "訝": 11, "牙": 4, "齒": 15,
+      "柳": 9, "丁": 2, "粉": 10, "網": 14, "錄": 16, "耘": 10, "蔬": 15, "鼓": 13, "腮": 13, "烤": 10, "鏡": 19, "軌": 9, "樓": 15, "與": 14, "耕": 10,
+      "研": 9, "靈": 24, "升": 4, "紀": 9, "碑": 13, "制": 8, "命": 8, "義": 13, "標": 15, "良": 7, "兄": 5, "翔": 12, "鷹": 24, "論": 15, "控": 11
+    };
+
+    // 狀態設定
+    let activeLesson = "1";
+    let activeChar = "灣";
+    let currentTheme = "ink";
+    let isIframeLoading = false;
+    
+    let learningTimer = null;
+    let timerTotalMs = 0;
+    let timerElapsedMs = 0;
+    const updateIntervalMs = 100;
+
+    let learnedCharacters = new Set();
+    try {
+      const stored = localStorage.getItem('stroke_order_learned_chars_v2');
+      if (stored) {
+        learnedCharacters = new Set(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.warn("Could not load progress", e);
+    }
+
+    // DOM 節點
+    const lessonSelect = document.getElementById('lesson-select');
+    const charGrid = document.getElementById('char-grid');
+    const guideText = document.getElementById('guide-text');
+    const audioPronounce = document.getElementById('audio-pronounce');
+    const moeIframe = document.getElementById('moe-iframe');
+    const btnMarkLearned = document.getElementById('btn-mark-learned');
+    const markBtnIcon = document.getElementById('mark-btn-icon');
+    const markBtnText = document.getElementById('mark-btn-text');
+    const btnReset = document.getElementById('btn-reset');
+    
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const timerStatus = document.getElementById('timer-status');
+    const timerCountdown = document.getElementById('timer-countdown');
+
+    function saveProgress() {
+      try {
+        localStorage.setItem('stroke_order_learned_chars_v2', JSON.stringify([...learnedCharacters]));
+      } catch (e) {
+        console.warn("Could not save progress", e);
+      }
+    }
+
+    // 播放器濾鏡外觀控制
+    function setPlayerTheme(themeName) {
+      currentTheme = themeName;
+      moeIframe.classList.remove('theme-ink', 'theme-mint', 'theme-warm', 'theme-original');
+      moeIframe.classList.add(`theme-${themeName}`);
+
+      ['ink', 'mint', 'warm', 'original'].forEach(t => {
+        const btn = document.getElementById(`theme-btn-${t}`);
+        if (t === themeName) {
+          btn.className = "px-2.5 py-1 rounded-full border border-slate-400 bg-slate-800 text-white font-bold transition-all shadow-sm";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all";
+        }
+      });
+    }
+
+    // 語音發音
+    function speakCharacter(char) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(char);
+        utterance.lang = 'zh-TW';
+        utterance.rate = 0.75;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // 啟動倒數計時與學習計時器
+    function startSmartLearningTimer(char) {
+      clearInterval(learningTimer);
+      
+      const isAlreadyLearned = learnedCharacters.has(char);
+      if (isAlreadyLearned) {
+        progressContainer.style.opacity = "1";
+        progressBar.style.width = "100%";
+        timerStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i> 你已經完成這個字的筆順練習囉！';
+        timerCountdown.textContent = "已學會";
+        guideText.textContent = `100% 官方標準筆順載入完畢！你已經完成「${char}」字練習囉！`;
+        return;
+      }
+
+      progressContainer.style.opacity = "1";
+      const strokeCount = StrokeCountMap[char] || 10;
+      timerTotalMs = (strokeCount * 1800) + 4000;
+      timerElapsedMs = 0;
+
+      progressBar.style.width = "0%";
+      timerStatus.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-teal-500"></i> 請在右側點選「練習」並手寫「${char}」字中...`;
+      timerCountdown.textContent = `${Math.ceil(timerTotalMs / 1000)} 秒`;
+      guideText.textContent = `請點擊右方播放器中的「練習」頁籤進行標準筆順書寫！`;
+
+      learningTimer = setInterval(() => {
+        timerElapsedMs += updateIntervalMs;
+        const percent = Math.min((timerElapsedMs / timerTotalMs) * 100, 100);
+        progressBar.style.width = `${percent}%`;
+        
+        const secondsLeft = Math.ceil((timerTotalMs - timerElapsedMs) / 1000);
+        timerCountdown.textContent = secondsLeft > 0 ? `${secondsLeft} 秒` : "完成！";
+
+        if (timerElapsedMs >= timerTotalMs) {
+          clearInterval(learningTimer);
+          triggerAutoMarkSuccess(char);
+        }
+      }, updateIntervalMs);
+    }
+
+    function stopSmartLearningTimer() {
+      clearInterval(learningTimer);
+      progressBar.style.width = "0%";
+      timerCountdown.textContent = "-- 秒";
+    }
+
+    function triggerAutoMarkSuccess(char) {
+      if (!learnedCharacters.has(char)) {
+        SoundEffects.init();
+        learnedCharacters.add(char);
+        SoundEffects.playCelebrate();
+        saveProgress();
+        renderCharGrid();
+        updateMarkButtonState();
+        
+        timerStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i> 練習完畢！已自動標記學會！';
+        guideText.textContent = `太棒了！你已學會教育部標準「${char}」字的筆劃與字形結構！`;
+      }
+    }
+
+    // 渲染生字按鈕格子 (iPad 優化排版與按鈕大小)
+    function renderCharGrid() {
+      charGrid.innerHTML = '';
+      const list = LessonDatabase[activeLesson] || [];
+      list.forEach((char) => {
+        const btn = document.createElement('button');
+        btn.textContent = char;
+        
+        const isActive = (char === activeChar);
+        const isLearned = learnedCharacters.has(char);
+        
+        btn.className = `p-3.5 rounded-2xl font-black text-3xl border transition-all cursor-pointer relative flex items-center justify-center ${
+          isActive 
+            ? 'bg-[#16a085] text-white border-[#117a65] shadow-md transform scale-105' 
+            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200 shadow-sm'
+        }`;
+
+        if (isLearned) {
+          const badge = document.createElement('span');
+          badge.className = "badge-bounce absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center border border-white shadow-md font-bold";
+          badge.innerHTML = '<i class="fa-solid fa-check"></i>';
+          btn.appendChild(badge);
+        }
+
+        btn.onclick = () => {
+          if (activeChar === char && !isIframeLoading) return;
+          activeChar = char;
+          renderCharGrid();
+          loadMoeStrokeAnimation(char);
+          speakCharacter(char);
+          updateMarkButtonState();
+        };
+        charGrid.appendChild(btn);
+      });
+    }
+
+    // 更新「我寫好了/手動打勾」按鈕狀態
+    function updateMarkButtonState() {
+      const isLearned = learnedCharacters.has(activeChar);
+      if (isLearned) {
+        btnMarkLearned.className = "bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm py-3.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2";
+        markBtnIcon.className = "fa-solid fa-square-minus text-base";
+        markBtnText.textContent = "取消打勾";
+      } else {
+        btnMarkLearned.className = "bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2";
+        markBtnIcon.className = "fa-regular fa-square-check text-base";
+        markBtnText.textContent = "我寫好了！";
+      }
+    }
+
+    // 載入官方 iframe 筆順頁面
+    function loadMoeStrokeAnimation(char) {
+      isIframeLoading = true;
+      stopSmartLearningTimer();
+      
+      progressBar.style.width = "0%";
+      timerStatus.innerHTML = '<i class="fa-solid fa-spinner animate-spin text-teal-500"></i> 連線教育部官方標準資料中...';
+      timerCountdown.textContent = "載入中";
+      guideText.textContent = `正在載入教育部 100% 標準國字「${char}」動畫與手寫練習面板...`;
+
+      const unicodeDecimal = char.codePointAt(0);
+      moeIframe.src = `https://stroke-order.learningweb.moe.edu.tw/dictFrame.jsp?ID=${unicodeDecimal}`;
+    }
+
+    // 頁面初始化與事件處理
+    window.addEventListener('load', () => {
+      const initialList = LessonDatabase[activeLesson];
+      activeChar = initialList[0];
+
+      renderCharGrid();
+      loadMoeStrokeAnimation(activeChar);
+      updateMarkButtonState();
+      setPlayerTheme(currentTheme);
+
+      // 當 Iframe 完全載入後再啟動自動倒數，避免過早開始計時
+      moeIframe.onload = () => {
+        isIframeLoading = false;
+        startSmartLearningTimer(activeChar);
+      };
+
+      // 監聽課次變更
+      lessonSelect.onchange = (e) => {
+        activeLesson = e.target.value;
+        const currentList = LessonDatabase[activeLesson];
+        activeChar = currentList[0];
+        renderCharGrid();
+        loadMoeStrokeAnimation(activeChar);
+        updateMarkButtonState();
+      };
+
+      audioPronounce.onclick = () => {
+        speakCharacter(activeChar);
+      };
+
+      // 手動標記為已學會 / 未學會切換
+      btnMarkLearned.onclick = () => {
+        SoundEffects.init();
+        if (learnedCharacters.has(activeChar)) {
+          learnedCharacters.delete(activeChar);
+          startSmartLearningTimer(activeChar);
+        } else {
+          learnedCharacters.add(activeChar);
+          SoundEffects.playCelebrate();
+          stopSmartLearningTimer();
+          timerStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i> 已手動完成學習標記！';
+          progressBar.style.width = "100%";
+        }
+        saveProgress();
+        renderCharGrid();
+        updateMarkButtonState();
+      };
+
+      // 重設整課進度
+      btnReset.onclick = () => {
+        if (confirm("確定要清除本課生字的所有學習打勾紀錄，重新開始嗎？")) {
+          learnedCharacters.clear();
+          saveProgress();
+          renderCharGrid();
+          updateMarkButtonState();
+          startSmartLearningTimer(activeChar);
+        }
+      };
+    });
+  </script>
+</body>
+</html>
