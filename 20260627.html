@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生字筆順練習頁</title>
+    <!-- 引入 Tailwind CSS 提供精美現代的 UI 風格 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide 圖示庫 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- 引入 Hanzi Writer 核心庫（繁體標準筆順繪製） -->
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <!-- 引入 html2canvas 庫（將 HTML 轉換成圖片存入 iPad） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #e6f4ea 100%);
+        }
+        /* 滾動條樣式優化 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* 手寫區域的滑鼠與觸控優化 */
+        #character-container svg {
+            display: block;
+            margin: auto;
+        }
+
+        /* 慶祝彩色碎紙動畫 */
+        @keyframes confetti-fall {
+            0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            z-index: 100;
+            animation: confetti-fall 3s linear infinite;
+        }
+
+        /* 獎狀列印媒體查詢 */
+        @media print {
+            body {
+                background: white !important;
+                background-image: none !important;
+            }
+            body > *:not(#certificate-modal) {
+                display: none !important;
+            }
+            #certificate-modal {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background: white !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            #certificate-modal .no-print {
+                display: none !important;
+            }
+            #certificate-paper {
+                box-shadow: none !important;
+                border: 12px double #b45309 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 3rem !important;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 md:p-8 relative overflow-x-hidden">
+
+    <!-- 主介面容器 -->
+    <div class="bg-white rounded-3xl shadow-2xl border border-emerald-100 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row transition-all duration-300">
+        
+        <!-- 左側控制區面板 -->
+        <div class="flex-1 p-6 md:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-100">
+            <div>
+                <!-- 標題與副標題：已更新為指定內容 -->
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="bg-emerald-500 text-white p-2.5 rounded-2xl shadow-lg shadow-emerald-500/20">
+                        <i data-lucide="pen-tool" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-slate-800">生字筆順練習頁</h1>
+                        <p class="text-xs text-emerald-600 font-medium">🤜🏽小組團體作業🤛🏽</p>
+                    </div>
+                </div>
+
+                <!-- 課程選擇下拉選單 -->
+                <div class="mb-5">
+                    <label class="block text-sm font-bold text-slate-500 mb-2">選擇課別</label>
+                    <div class="relative">
+                        <select id="lesson-select" onchange="changeLesson()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 font-bold py-3.5 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none cursor-pointer transition-all">
+                            <!-- JS 動態生成 1-12 課 -->
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生字九宮格選擇區 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-bold text-slate-500">生字列表</label>
+                        <span id="completion-rate" class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold transition-all duration-300">已完成 0%</span>
+                    </div>
+                    <div id="word-grid" class="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-56 overflow-y-auto pr-1 py-1 custom-scrollbar">
+                        <!-- JS 動態生成課文生字 -->
+                    </div>
+                </div>
+
+                <!-- 100% 完成時才會顯示的作業繳交區域 -->
+                <div id="completion-action-area" class="hidden mb-6 transition-all duration-500 transform scale-95 opacity-0">
+                    <button onclick="openNameModal()" class="w-full bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-600 hover:to-amber-600 active:scale-95 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2.5 transition-all animate-pulse border border-yellow-300">
+                        <i data-lucide="trophy" class="w-6 h-6 animate-bounce text-yellow-100"></i>
+                        <span class="text-base tracking-wider">🎉 恭喜完成！點我領取獎狀</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 控制功能按鈕群 -->
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <button onclick="playStrokeAnimation()" id="play-btn" class="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-700/30 flex items-center justify-center gap-2 transition-all duration-200 transform active:scale-95">
+                    <i data-lucide="play" class="w-5 h-5"></i>
+                    <span>開始示範</span>
+                </button>
+                <button onclick="speakWord()" class="bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-700 font-bold py-3.5 px-4 rounded-2xl border border-amber-200 flex items-center justify-center gap-2 transition-all duration-200 transform active:scale-95">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                    <span>語音讀音</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側標準畫布與狀態回饋 -->
+        <div class="flex-[1.2] p-6 md:p-8 bg-slate-50/50 flex flex-col items-center justify-center min-h-[480px] md:min-h-0 font-sans">
+            
+            <!-- 將隱藏的當前生字節點放置於此，確保 JS 獲取 innerText 時運作完美 -->
+            <span id="current-word-display" class="hidden">蕉</span>
+
+            <!-- 播放速度選擇區：已成功移至動畫框的正上方 -->
+            <div class="mb-4 w-full max-w-sm px-2">
+                <div class="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/50 shadow-inner">
+                    <button onclick="changeSpeed(0.5)" id="speed-btn-0.5" class="speed-btn text-xs font-bold py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-slate-800">
+                        0.5x 慢速
+                    </button>
+                    <!-- 預設選擇 1.0x 標準倍速 -->
+                    <button onclick="changeSpeed(1.0)" id="speed-btn-1.0" class="speed-btn text-xs font-bold py-2.5 rounded-xl transition-all duration-200 bg-white text-emerald-600 shadow-sm border border-slate-100">
+                        1.0x 標準
+                    </button>
+                    <!-- 原 1.2x 調整為 1.5x 快速 -->
+                    <button onclick="changeSpeed(1.5)" id="speed-btn-1.5" class="speed-btn text-xs font-bold py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-slate-800">
+                        1.5x 快速
+                    </button>
+                </div>
+            </div>
+
+            <!-- 筆順渲染區域 -->
+            <div class="relative w-full max-w-sm aspect-square bg-white border-4 border-emerald-500 rounded-3xl shadow-lg flex items-center justify-center overflow-hidden group transition-all duration-300 hover:border-emerald-600">
+                
+                <!-- Hanzi Writer 互動練習容器 -->
+                <div id="hanzi-container" class="absolute inset-0 w-full h-full flex items-center justify-center bg-white">
+                    <!-- 教育部紅線田字格背景 -->
+                    <div class="absolute inset-0 pointer-events-none p-2 flex flex-col justify-between z-0">
+                        <svg class="w-full h-full stroke-red-200/40 stroke-1" viewBox="0 0 100 100" fill="none">
+                            <line x1="50" y1="0" x2="50" y2="100" stroke-dasharray="2 2" />
+                            <line x1="0" y1="50" x2="100" y2="50" stroke-dasharray="2 2" />
+                            <line x1="0" y1="0" x2="100" y2="100" stroke-dasharray="3 3" class="stroke-red-100/20" />
+                            <line x1="100" y1="0" x2="0" y2="100" stroke-dasharray="3 3" class="stroke-red-100/20" />
+                        </svg>
+                    </div>
+                    <!-- 實際 Hanzi Writer 綁定的繪圖容器 -->
+                    <div id="character-container" class="z-10 cursor-pointer"></div>
+                </div>
+            </div>
+
+            <!-- 底部資訊與互動提示 -->
+            <div class="mt-5 text-center px-4 w-full max-w-sm">
+                <p id="status-text" class="text-emerald-700 font-bold text-base md:text-lg flex items-center justify-center gap-1.5 h-8">
+                    正在載入生字標準資料...
+                </p>
+                <p id="sub-status" class="text-xs text-slate-400 mt-1.5">
+                    示範播放完畢後，將自動開啟手寫練習模式！
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 彈出式訊息回饋 (Toast) -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/95 text-white px-6 py-3.5 rounded-full shadow-2xl text-sm font-semibold opacity-0 transition-opacity duration-300 pointer-events-none flex items-center gap-2 z-50">
+        <span id="toast-msg"></span>
+    </div>
+
+    <!-- ================== 互動視窗 1：請輸入姓名 ================== -->
+    <div id="name-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl border border-slate-100 transform scale-95 transition-transform duration-300">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="bg-amber-100 text-amber-600 p-2.5 rounded-xl">
+                    <i data-lucide="medal" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">非常優秀！準備領取證書</h3>
+            </div>
+            <p class="text-sm text-slate-500 mb-6">請輸入你的中文真實姓名，系統將會為你寫入專屬的實體榮譽證書：</p>
+            
+            <div class="mb-6">
+                <input type="text" id="student-name-input" placeholder="例如：林小明" class="w-full border-2 border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 rounded-xl px-4 py-3 text-lg font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300">
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeNameModal()" class="flex-1 py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl transition-all">
+                    取消
+                </button>
+                <button onclick="submitHomework()" class="flex-[2] py-3 text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 active:scale-95 rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    繳交並領取獎狀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================== 互動視窗 2：實體大獎狀 ================== -->
+    <div id="certificate-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-8 overflow-y-auto">
+        <!-- 彩色碎紙產生容器 -->
+        <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden z-0"></div>
+        
+        <div class="relative max-w-2xl w-full flex flex-col items-center gap-6 z-10 my-8">
+            
+            <!-- 獎狀主體紙張：優化內邊距與最小高度，防止內容溢出底邊 -->
+            <div id="certificate-paper" class="w-full bg-[#fffdf6] border-[14px] border-double border-amber-700 rounded-2xl shadow-2xl p-6 md:p-10 text-slate-800 relative overflow-hidden transition-all duration-500 transform scale-95 opacity-0 flex flex-col justify-between aspect-[1.414/1] min-h-[400px]">
+                
+                <!-- 經典古風底盤背景水印 -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none select-none">
+                    <i data-lucide="award" class="w-[300px] h-[300px] text-amber-900"></i>
+                </div>
+
+                <!-- 頂部繁體正楷「獎狀」大標題：微調字型大小至 4xl / 5xl，大幅提昇分量感 -->
+                <div class="text-center mb-3 relative">
+                    <h2 class="text-4xl md:text-5xl font-black text-red-600 tracking-[0.6em] pl-[0.6em] font-serif">獎狀</h2>
+                    <div class="w-32 h-[3px] bg-red-600 mx-auto mt-2"></div>
+                    <div class="w-24 h-[1px] bg-red-500 mx-auto mt-1"></div>
+                </div>
+
+                <!-- 獎狀內文主體：改寫為暖心、充滿冒險風格的新內文 -->
+                <div class="flex-grow flex flex-col justify-center text-slate-800 leading-relaxed font-serif relative py-2">
+                    <!-- 賀詞格式調整為完全置中、乾淨姓名與雙角括號：恭喜 [姓名] 同學順利完成「[課別]」的筆順作業！ -->
+                    <p class="text-base md:text-xl font-bold mb-3 tracking-wide text-center leading-normal">
+                        恭喜 <span id="cert-student-name" class="text-red-700 underline underline-offset-4 decoration-2 font-black px-1 text-xl md:text-2xl">林小明</span> 同學順利完成「<span id="cert-lesson-title" class="text-amber-800 font-extrabold px-1">第一課</span>」的筆順作業！
+                    </p>
+                    <p class="text-xs md:text-sm text-justify tracking-wide indent-6 md:indent-8 font-bold mb-2">
+                        這是一場團體冒險，一個人走雖然可以很快，但一群人走，才能走得又遠又好玩！
+                    </p>
+                    <p class="text-xs md:text-sm text-justify tracking-wide indent-6 md:indent-8 font-bold mb-2">
+                        真正厲害的人，是絕對不會留下任何一個隊友的！趕快去看看你的組員現在進行到哪裡了，用你的超能力幫大家一起破關吧！
+                    </p>
+                    <!-- 特頒此狀，加油加油！ 水平置中呈現 -->
+                    <p class="text-sm md:text-base tracking-wide text-center font-black text-red-600 mt-3">
+                        特頒此狀，加油加油！
+                    </p>
+                </div>
+
+                <!-- 底部發證資訊與大紅鋼印：大紅印章精準往下調整 10 像素平衡排版 -->
+                <div class="mt-2 flex justify-between items-end relative -top-[10px]">
+                    <!-- 左下：已移除頒發單位，動態寫入詳細的西元日期時間 -->
+                    <div class="text-xs md:text-sm text-slate-600 font-bold font-serif space-y-1.5 z-10">
+                        <p id="cert-date" class="text-slate-800 tracking-wide text-xs md:text-sm font-bold border-b border-amber-200 pb-1">
+                            西元 ---- 年 -- 月 -- 日 -- -- 時 -- 分
+                        </p>
+                    </div>
+
+                    <!-- 右下：傳統大紅特優印章 (向左下微調以達到最完美的視覺平衡，translate-x-1.5 為 md 尺寸平移位置，translate-x-[-8px] 為 sm 尺寸平移位置) -->
+                    <div class="relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center select-none transform rotate-12 translate-y-[2px] translate-x-[-8px] md:translate-x-1.5">
+                        <!-- 印章本體 SVG 模擬傳統篆體紅色方印 -->
+                        <div class="w-full h-full border-4 border-red-600 rounded-lg flex flex-col items-center justify-center p-1 font-serif text-red-600 font-black tracking-widest text-center leading-none">
+                            <div class="grid grid-cols-2 gap-1 text-[11px] md:text-[13px] p-0.5 border-2 border-red-600 rounded">
+                                <span>生</span><span>字</span>
+                                <span>筆</span><span>順</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 控制列印與關閉按鈕：僅保留儲存圖片與返回，並調整排版為美觀的 sm:grid-cols-2 -->
+            <div class="no-print grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                <button onclick="saveAsiPadImage()" class="py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 transform active:scale-95 text-sm md:text-base">
+                    <i data-lucide="image" class="w-5 h-5"></i>
+                    <span>儲存獎狀圖片</span>
+                </button>
+                <button onclick="closeCertificateModal()" class="py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-2xl shadow-xl transition-all flex items-center justify-center gap-1.5 transform active:scale-95 text-sm md:text-base">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                    <span>關閉並返回</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ================== 互動視窗 3：iPad 專用長按圖片儲存對話框 ================== -->
+    <div id="ipad-save-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl border border-slate-100 transform scale-95 transition-transform duration-300 text-center relative flex flex-col items-center">
+            
+            <!-- 閃亮亮勳章 -->
+            <div class="bg-emerald-100 text-emerald-600 p-3 rounded-full mb-4 animate-bounce">
+                <i data-lucide="sparkles" class="w-8 h-8"></i>
+            </div>
+            
+            <h3 class="text-xl md:text-2xl font-black text-slate-800 mb-2">🖼️ iPad 專用圖片儲存區</h3>
+            
+            <p class="text-sm md:text-base text-slate-600 font-bold mb-4 bg-amber-50 text-amber-700 border border-amber-200 p-3 rounded-xl max-w-md">
+                請「長按」下方生成的獎狀圖片，接著選擇<span class="text-red-600 underline decoration-2 font-black">「加入照片」</span>或<span class="text-red-600 underline decoration-2 font-black">「儲存圖片」</span>，就能成功放入 iPad 的相簿囉！
+            </p>
+
+            <!-- 用於長按儲存的 Canvas 渲染圖片 -->
+            <div class="w-full max-w-md aspect-[1.414/1] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner mb-6">
+                <img id="rendered-cert-img" class="w-full h-full object-contain cursor-pointer select-all" alt="獎狀圖片" />
+            </div>
+
+            <!-- 返回按鈕 -->
+            <button onclick="closeIpadSaveModal()" class="w-full max-w-xs py-3.5 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                <span>返回獎狀區</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 課堂與字體資料庫，1-12課生字清單 (第十二課已調整為僅保留「一」)
+        const lessonData = {
+            1: ["灣", "甜", "糖", "童", "寒", "椰", "隊", "蕉", "街", "島", "唾", "沫", "忠", "衛"],
+            2: ["春", "夏", "秋", "冬", "風", "雨", "花", "草", "葉", "光"],
+            3: ["山", "石", "田", "土", "水", "火", "木", "禾", "日", "月"],
+            4: ["家", "爸", "媽", "哥", "姐", "弟", "妹", "爺", "奶", "愛"],
+            5: ["學", "校", "老", "師", "同", "玩", "遊", "戲", "笑", "書"],
+            6: ["高", "興", "聽", "說", "讀", "寫", "唱", "畫", "報", "紙"],
+            7: ["天", "地", "人", "你", "我", "他", "大", "小", "多", "少"],
+            8: ["左", "右", "前", "後", "上", "下", "出", "入", "來", "去"],
+            9: ["頭", "手", "足", "耳", "目", "口", "鼻", "牙", "舌", "身"],
+            10: ["牛", "羊", "馬", "雞", "鴨", "鵝", "貓", "狗", "豬", "魚"],
+            11: ["紅", "橙", "黃", "綠", "藍", "靛", "紫", "黑", "白", "金"],
+            12: ["一"]
+        };
+
+        // 追蹤完成的生字（手寫通過）
+        const completedWords = new Set();
+
+        // 核心狀態變信
+        let writer = null;
+        let selectedWord = "蕉"; 
+        let isQuizMode = false;
+        let playbackSpeed = 1.0; 
+
+        // 初始化
+        window.onload = function() {
+            lucide.createIcons();
+            const select = document.getElementById("lesson-select");
+            for (let i = 1; i <= 12; i++) {
+                const opt = document.createElement("option");
+                opt.value = i;
+                opt.innerText = `第${convertToChineseNumber(i)}課`;
+                select.appendChild(opt);
+            }
+
+            renderWordGrid(1);
+            // 預設不自動播放，傳入 autoPlay = false
+            loadStrokeWriter(selectedWord, false);
+        };
+
+        // 數字轉中文小幫手
+        function convertToChineseNumber(num) {
+            const chineseNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
+            return chineseNums[num] || num;
+        }
+
+        // 渲染對應課別的生字
+        function renderWordGrid(lessonNum) {
+            const grid = document.getElementById("word-grid");
+            grid.innerHTML = ""; 
+
+            const words = lessonData[lessonNum] || [];
+            let completedCount = 0;
+
+            words.forEach(word => {
+                const singleChar = word.charAt(0);
+                const isCompleted = completedWords.has(singleChar);
+                if (isCompleted) completedCount++;
+                
+                const btn = document.createElement("button");
+                btn.className = `word-btn relative aspect-square text-2xl font-bold rounded-xl border transition-all duration-200 flex items-center justify-center ${
+                    singleChar === selectedWord 
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-600 shadow-sm ring-2 ring-emerald-500/20" 
+                        : isCompleted
+                            ? "bg-slate-50 border-emerald-200 text-emerald-800"
+                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95"
+                }`;
+                btn.innerText = singleChar;
+                // 切換字時不自動播放
+                btn.onclick = () => selectWord(singleChar, false);
+
+                if (isCompleted) {
+                    const badge = document.createElement("div");
+                    badge.className = "absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-md flex items-center justify-center";
+                    badge.innerHTML = `<i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>`;
+                    btn.appendChild(badge);
+                }
+
+                grid.appendChild(btn);
+            });
+
+            const rateSpan = document.getElementById("completion-rate");
+            const percentage = Math.round((completedCount / words.length) * 100);
+            rateSpan.innerText = `已完成 ${percentage}%`;
+            
+            const actionArea = document.getElementById("completion-action-area");
+            
+            if (percentage === 100) {
+                // 保留跳動動畫
+                rateSpan.className = "text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-full font-bold animate-bounce transition-all duration-300";
+                
+                if (actionArea) {
+                    actionArea.classList.remove("hidden");
+                    setTimeout(() => {
+                        actionArea.classList.add("scale-100", "opacity-100");
+                    }, 50);
+                }
+            } else {
+                rateSpan.className = "text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold transition-all duration-300";
+                if (actionArea) {
+                    actionArea.classList.remove("scale-100", "opacity-100");
+                    setTimeout(() => {
+                        actionArea.classList.add("hidden");
+                    }, 300);
+                }
+            }
+
+            lucide.createIcons();
+        }
+
+        function changeLesson() {
+            const select = document.getElementById("lesson-select");
+            renderWordGrid(parseInt(select.value));
+            
+            const firstWordBtn = document.querySelector("#word-grid button");
+            if (firstWordBtn) {
+                firstWordBtn.click();
+            }
+        }
+
+        function selectWord(word, autoPlay = false) {
+            selectedWord = word;
+            
+            const select = document.getElementById("lesson-select");
+            renderWordGrid(parseInt(select.value));
+
+            const currentDisplay = document.getElementById("current-word-display");
+            if (currentDisplay) {
+                currentDisplay.innerText = word;
+            }
+            
+            disableQuizMode();
+            loadStrokeWriter(word, autoPlay);
+        }
+
+        async function fetchCharData(word) {
+            try {
+                const res = await fetch(`https://cdn.jsdelivr.net/npm/hanzi-writer-data-tw@1.0/${word}.json`);
+                if (res.ok) return await res.json();
+            } catch (e) {}
+
+            try {
+                const res = await fetch(`https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${word}.json`);
+                if (res.ok) return await res.json();
+            } catch (e) {}
+
+            return null;
+        }
+
+        // 修改為接收 autoPlay 參數
+        function loadStrokeWriter(word, autoPlay = true) {
+            if (writer) {
+                writer.cancelQuiz();
+            }
+            
+            const container = document.getElementById("character-container");
+            container.innerHTML = ""; 
+
+            const statusText = document.getElementById("status-text");
+            if (statusText) {
+                statusText.innerHTML = `正在下載「<span class="text-xl text-emerald-800">${word}</span>」標準筆順資料...`;
+            }
+
+            fetchCharData(word).then(charData => {
+                if (!charData) {
+                    showToast(`「${word}」筆順資料下載失敗，請嘗試其他漢字！`);
+                    if (statusText) {
+                        statusText.innerHTML = `<span class="text-rose-600 font-bold">載入失敗</span>`;
+                    }
+                    return;
+                }
+
+                const containerWidth = document.getElementById("hanzi-container").clientWidth;
+                const width = Math.min(containerWidth - 40, window.innerWidth < 640 ? 240 : 300);
+                
+                const actualSpeed = playbackSpeed === 1.0 ? 0.9 : playbackSpeed;
+
+                // 依據是否為播放中決定部首顏色
+                const currentRadicalColor = autoPlay ? "#059669" : "#ef4444";
+
+                writer = HanziWriter.create("character-container", word, {
+                    width: width,
+                    height: width,
+                    padding: 15,
+                    strokeColor: "#059669", 
+                    radicalColor: currentRadicalColor, 
+                    outlineColor: "#e2e8f0", 
+                    highlightColor: "#94a3b8", // 錯誤提示顏色為灰色
+                    strokeAnimationSpeed: actualSpeed, 
+                    delayBetweenStrokes: Math.round(180 / actualSpeed),
+                    showOutline: true,
+                    charDataLoader: function(char, onComplete) {
+                        onComplete(charData);
+                    }
+                });
+
+                // 如果允許自動播放，就開始動畫，否則停在完成畫面
+                if (autoPlay) {
+                    updateStatusText();
+                    writer.animateCharacter({
+                        onComplete: function() {
+                            enableQuizMode();
+                        }
+                    });
+                } else {
+                    // 靜止顯示，並提示使用者按鈕
+                    const subStatus = document.getElementById("sub-status");
+                    if (statusText) {
+                        statusText.innerHTML = `「<span class="text-xl text-emerald-800">${word}</span>」已準備就緒！`;
+                    }
+                    if (subStatus) {
+                        subStatus.innerText = "請點擊下方的「開始示範」播放筆順";
+                    }
+                }
+                
+            }).catch(err => {
+                console.error(err);
+                showToast(`載入錯誤，請檢查網路連線。`);
+            });
+        }
+
+        function changeSpeed(speed) {
+            playbackSpeed = speed;
+
+            const speeds = [0.5, 1.0, 1.5];
+            speeds.forEach(s => {
+                const btn = document.getElementById(`speed-btn-${s}`);
+                if (btn) {
+                    if (s === speed) {
+                        btn.className = "speed-btn text-xs font-bold py-2.5 rounded-xl transition-all duration-200 bg-white text-emerald-600 shadow-sm border border-slate-100";
+                    } else {
+                        btn.className = "speed-btn text-xs font-bold py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-slate-800 hover:bg-white/40";
+                    }
+                }
+            });
+
+            const speedLabel = speed === 1.0 ? "標準" : speed === 0.5 ? "慢速" : "快速";
+            showToast(`已切換為 ${speed}x ${speedLabel}播放 ⚡`);
+
+            disableQuizMode();
+            loadStrokeWriter(selectedWord, true);
+        }
+
+        // 開始示範按鈕觸發：重新載入並自動播放
+        function playStrokeAnimation() {
+            disableQuizMode();
+            loadStrokeWriter(selectedWord, true);
+        }
+
+        function enableQuizMode() {
+            isQuizMode = true;
+            
+            const statusText = document.getElementById("status-text");
+            const subStatus = document.getElementById("sub-status");
+            const practiceStatus = document.getElementById("practice-status");
+
+            if (practiceStatus) {
+                practiceStatus.innerText = "手寫練習模式";
+                practiceStatus.className = "text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold animate-pulse";
+            }
+            if (statusText) {
+                statusText.innerHTML = `輪到你囉！請嘗試寫出「<span class="text-xl text-blue-700">${selectedWord}</span>」字`;
+            }
+            if (subStatus) {
+                subStatus.innerText = "請直接在白色田字格內，跟著灰色軌跡描描看！";
+            }
+
+            if (writer) {
+                writer.quiz({
+                    onMistake: function(strokeData) {
+                        showToast(`加油！筆劃方向或順序不對哦，再試一次！`);
+                    },
+                    onCorrectStroke: function(strokeData) {
+                    },
+                    onComplete: function(summary) {
+                        completedWords.add(selectedWord);
+                        
+                        const select = document.getElementById("lesson-select");
+                        renderWordGrid(parseInt(select.value));
+
+                        showToast(`🎉 太棒了！您成功寫完「${selectedWord}」字了！`);
+                        
+                        setTimeout(() => {
+                            speakWord();
+                        }, 500);
+                    }
+                });
+            }
+        }
+
+        function disableQuizMode() {
+            isQuizMode = false;
+            
+            const practiceStatus = document.getElementById("practice-status");
+            
+            if (practiceStatus) {
+                practiceStatus.innerText = "示範模式";
+                practiceStatus.className = "text-xs bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full font-semibold";
+            }
+        }
+
+        function updateStatusText() {
+            const statusText = document.getElementById("status-text");
+            const subStatus = document.getElementById("sub-status");
+            
+            if (statusText) {
+                statusText.innerHTML = `正在示範「<span class="text-xl text-emerald-800">${selectedWord}</span>」字標準筆順...`;
+            }
+            if (subStatus) {
+                subStatus.innerText = "示範播放完畢後，將自動開啟手寫練習模式！";
+            }
+        }
+
+        function speakWord() {
+            if (!selectedWord) return;
+            
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(selectedWord);
+            utterance.lang = "zh-TW"; 
+            utterance.rate = 0.8;     
+            
+            window.speechSynthesis.speak(utterance);
+            showToast(`正在播放「${selectedWord}」讀音 🔊`);
+        }
+
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            const msgSpan = document.getElementById("toast-msg");
+            
+            if (msgSpan && toast) {
+                msgSpan.innerText = message;
+                toast.classList.remove("opacity-0", "pointer-events-none");
+                
+                if (toastTimer) clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => {
+                    toast.classList.add("opacity-0", "pointer-events-none");
+                }, 3000);
+            }
+        }
+
+        function openNameModal() {
+            const modal = document.getElementById("name-modal");
+            const input = document.getElementById("student-name-input");
+            if (modal) {
+                modal.classList.remove("hidden");
+                setTimeout(() => {
+                    modal.querySelector("div").classList.remove("scale-95");
+                }, 50);
+            }
+            if (input) {
+                input.value = "";
+                input.focus();
+            }
+        }
+
+        function closeNameModal() {
+            const modal = document.getElementById("name-modal");
+            if (modal) {
+                modal.querySelector("div").classList.add("scale-95");
+                setTimeout(() => {
+                    modal.classList.add("hidden");
+                }, 150);
+            }
+        }
+
+        function submitHomework() {
+            const nameInput = document.getElementById("student-name-input");
+            const name = nameInput ? nameInput.value.trim() : "";
+
+            if (!name) {
+                showToast("⚠️ 請輸入小朋友的姓名，才能製作專屬獎狀喔！");
+                return;
+            }
+
+            closeNameModal();
+
+            const select = document.getElementById("lesson-select");
+            const lessonNum = parseInt(select.value);
+            const lessonTitle = `第${convertToChineseNumber(lessonNum)}課`;
+
+            document.getElementById("cert-student-name").innerText = name;
+            document.getElementById("cert-lesson-title").innerText = lessonTitle;
+            
+            const formattedTime = getWestDateString();
+            document.getElementById("cert-date").innerText = formattedTime;
+
+            const certModal = document.getElementById("certificate-modal");
+            if (certModal) {
+                certModal.classList.remove("hidden");
+                setTimeout(() => {
+                    document.getElementById("certificate-paper").classList.remove("scale-95", "opacity-0");
+                }, 50);
+            }
+
+            playVictoryTune();
+            triggerConfetti();
+        }
+
+        function closeCertificateModal() {
+            const certModal = document.getElementById("certificate-modal");
+            if (certModal) {
+                document.getElementById("certificate-paper").classList.add("scale-95", "opacity-0");
+                setTimeout(() => {
+                    certModal.classList.add("hidden");
+                    document.getElementById("confetti-container").innerHTML = "";
+                }, 150);
+            }
+        }
+
+        function saveAsiPadImage() {
+            const targetElement = document.getElementById("certificate-paper");
+
+            html2canvas(targetElement, {
+                scale: 2,               
+                useCORS: true,          
+                backgroundColor: "#fffdf6", 
+                logging: false
+            }).then(canvas => {
+                const imgDataUrl = canvas.toDataURL("image/png");
+                const studentName = document.getElementById("cert-student-name").innerText || "學生";
+                
+                const downloadLink = document.createElement("a");
+                downloadLink.href = imgDataUrl;
+                downloadLink.download = `生字筆順達人證書_${studentName}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+
+                showToast("🎉 獎狀圖片下載中！");
+            }).catch(error => {
+                console.error("圖片產生失敗:", error);
+                showToast("⚠️ 圖片產生失敗，請稍後再試！");
+            });
+        }
+
+        function getWestDateString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
+            const hours = today.getHours();
+            const minutes = today.getMinutes();
+            const period = hours >= 12 ? "下午" : "上午";
+            const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+            const displayMinutes = minutes.toString().padStart(2, '0');
+            return `西元 ${year} 年 ${month} 月 ${day} 日 ${period} ${displayHour} 時 ${displayMinutes} 分`;
+        }
+
+        function playVictoryTune() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; 
+                const duration = 0.15;
+
+                notes.forEach((freq, index) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + index * duration);
+                    
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime + index * duration);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (index + 1.5) * duration);
+                    
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    osc.start(ctx.currentTime + index * duration);
+                    osc.stop(ctx.currentTime + (index + 2) * duration);
+                });
+            } catch (e) {
+                console.log("Audio feedback skipped:", e);
+            }
+        }
+
+        function triggerConfetti() {
+            const container = document.getElementById("confetti-container");
+            if (!container) return;
+            container.innerHTML = "";
+
+            const colors = ["#f59e0b", "#ef4444", "#3b82f6", "#10b981", "#ec4899", "#8b5cf6"];
+            const particleCount = 100;
+
+            for (let i = 0; i < particleCount; i++) {
+                const confetti = document.createElement("div");
+                confetti.className = "confetti";
+                
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = Math.random() * 100 + "vw";
+                confetti.style.top = -10 - Math.random() * 20 + "px";
+                confetti.style.transform = `scale(${Math.random() * 0.8 + 0.4})`;
+                
+                const delay = Math.random() * 2;
+                const duration = Math.random() * 1.5 + 2;
+                confetti.style.animation = `confetti-fall ${duration}s ${delay}s linear infinite`;
+
+                container.appendChild(confetti);
+            }
+        }
+
+        let resizeTimer;
+        window.onresize = function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (writer) {
+                    loadStrokeWriter(selectedWord, isQuizMode ? true : false); 
+                }
+            }, 300);
+        };
+    </script>
+
+</body>
+</html>
